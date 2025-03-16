@@ -1,0 +1,56 @@
+// Braggi I/O Standard Library
+// "Good I/O is like a clear conversation at an Irish pub -
+// everybody understands what's being said!"
+
+// Import core types
+import core;
+
+// Print a string to stdout
+fn print(s: String) -> Void {
+    primitive_print(s);
+}
+
+// Print a string with a newline
+fn println(s: String) -> Void {
+    primitive_println(s);
+}
+
+// Read a line from stdin
+fn read_line() -> String {
+    return primitive_read_line();
+}
+
+// File operations
+type File = constraint { handle: "file_handle" };
+
+// Open a file with the given mode (read, write, append)
+fn open_file(path: String, mode: String) -> File {
+    return primitive_open_file(path, mode);
+}
+
+// Close a file
+fn close_file(file: File) -> Bool {
+    return primitive_close_file(file);
+}
+
+// Read from a file
+fn read_file(file: File, bytes: Int) -> String {
+    return primitive_read_file(file, bytes);
+}
+
+// Write to a file
+fn write_file(file: File, content: String) -> Int {
+    return primitive_write_file(file, content);
+}
+
+// Read an entire file into a string
+fn read_file_to_string(path: String) -> String {
+    return primitive_read_file_to_string(path);
+}
+
+// Export all IO functionality
+export {
+    print, println, read_line,
+    File, open_file, close_file,
+    read_file, write_file, read_file_to_string
+} 

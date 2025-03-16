@@ -1,0 +1,16 @@
+// Hello World in Braggi
+// Shows basic region creation and access
+
+region StringRegion(1024) regime FILO {
+    // This region uses First-In-Last-Out (stack-like) access pattern
+    
+    func main() -> int {
+        // Allocate a string in the StringRegion
+        var message = "Hello, quantum world!";
+        
+        // Print the message
+        out(message);
+        
+        return 0;
+    }
+} 

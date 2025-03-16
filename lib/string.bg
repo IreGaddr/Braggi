@@ -1,0 +1,50 @@
+// Braggi String Standard Library
+// "String manipulation is an art form, like braiding a fine Texas lariat!"
+
+region StringRegion(16384) regime RAND {
+    // String operations
+    func length(str) -> int {
+        return __builtin_string_length(str);
+    }
+    
+    func concat(str1, str2) -> string {
+        return str1 + str2;
+    }
+    
+    func substring(str, start, end) -> string {
+        constrain start >= 0;
+        constrain end <= length(str);
+        constrain start <= end;
+        
+        return __builtin_substring(str, start, end);
+    }
+    
+    func contains(str, pattern) -> bool {
+        return __builtin_string_contains(str, pattern);
+    }
+    
+    func replace(str, pattern, replacement) -> string {
+        return __builtin_string_replace(str, pattern, replacement);
+    }
+    
+    func split(str, delimiter) -> array<string> {
+        return __builtin_string_split(str, delimiter);
+    }
+    
+    func join(arr, delimiter) -> string {
+        return __builtin_string_join(arr, delimiter);
+    }
+    
+    // String conversion
+    func to_uppercase(str) -> string {
+        return __builtin_string_to_upper(str);
+    }
+    
+    func to_lowercase(str) -> string {
+        return __builtin_string_to_lower(str);
+    }
+    
+    func trim(str) -> string {
+        return __builtin_string_trim(str);
+    }
+} 

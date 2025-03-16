@@ -1,0 +1,64 @@
+// Demonstration of periscopes for cross-region access in Braggi
+
+region WorkerRegion(2048) regime FIFO {
+    func process_data(data) {
+        // Process data from JobQueue
+        var result = transform(data);
+        return result;
+    }
+}
+
+region JobQueueRegion(4096) regime FIFO {
+    // Jobs in queue
+    var jobs[100];
+    var job_count = 0;
+    
+    func add_job(job) {
+        jobs[job_count++] = job;
+    }
+    
+    func get_next_job() {
+        if (job_count > 0) {
+            return jobs[--job_count];
+        }
+        return null;
+    }
+}
+
+region ResultRegion(8192) regime RAND {
+    // Store results
+    var results[100];
+    var result_count = 0;
+    
+    func add_result(result) {
+        results[result_count++] = result;
+    }
+    
+    func main() -> int {
+        // Set up jobs
+        for (var i = 0; i < 10; i++) {
+            add_job({id: i, data: "Job " + i});
+        }
+        
+        // Create periscopes for controlled access between regions
+        periscope from JobQueueRegion to WorkerRegion out;  // WorkerRegion can read from JobQueue
+        periscope from WorkerRegion to ResultRegion in;     // ResultRegion can read from Worker
+        
+        // Process jobs
+        var job;
+        while ((job = get_next_job()) != null) {
+            // Due to periscope, WorkerRegion can access the job
+            var result = process_data(job);
+            
+            // Due to periscope, ResultRegion can store the result
+            add_result(result);
+        }
+        
+        // Output results
+        for (var i = 0; i < result_count; i++) {
+            out("Result " + i + ": " + results[i]);
+        }
+        
+        return 0;
+    }
+} 

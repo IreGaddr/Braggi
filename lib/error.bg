@@ -1,0 +1,44 @@
+// Braggi Error Handling Standard Library
+// "Good error handling is like a sturdy fence on a Texas ranch -
+// it keeps you from wandering into trouble!"
+
+region ErrorRegion(4096) regime FIFO {
+    // Error type
+    type Error {
+        string message;
+        string source_location;
+        int code;
+    }
+    
+    // Global error handler
+    var last_error: Error = null;
+    
+    // Error creation
+    func error(message) -> void {
+        __builtin_raise_error(message);
+    }
+    
+    func error_with_code(message, code) -> void {
+        __builtin_raise_error_with_code(message, code);
+    }
+    
+    // Error handling
+    func get_last_error() -> Error {
+        return last_error;
+    }
+    
+    func clear_error() -> void {
+        last_error = null;
+    }
+    
+    // Try-catch simulation (since we have try-catch syntax)
+    func try_run(func_to_try) -> bool {
+        try {
+            func_to_try();
+            return true;
+        } catch (e) {
+            last_error = e;
+            return false;
+        }
+    }
+} 

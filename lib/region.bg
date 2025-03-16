@@ -1,0 +1,46 @@
+// Braggi Region Management Standard Library
+// "Managing memory regions is like managing different pastures on a ranch -
+// each has its purpose, and you don't want your cattle mixing without permission!"
+
+region RegionManagerRegion(8192) regime RAND {
+    // Region information
+    func region_size(region_name) -> int {
+        return __builtin_region_size(region_name);
+    }
+    
+    func region_used(region_name) -> int {
+        return __builtin_region_used(region_name);
+    }
+    
+    func region_free(region_name) -> int {
+        return __builtin_region_free(region_name);
+    }
+    
+    func region_regime(region_name) -> string {
+        return __builtin_region_regime(region_name);
+    }
+    
+    // Allocation utilities
+    func region_allocations(region_name) -> array<string> {
+        return __builtin_region_allocations(region_name);
+    }
+    
+    func region_largest_free_block(region_name) -> int {
+        return __builtin_region_largest_free_block(region_name);
+    }
+    
+    // Periscope utilities
+    func periscopes_from(region_name) -> array<string> {
+        return __builtin_periscopes_from(region_name);
+    }
+    
+    func periscopes_to(region_name) -> array<string> {
+        return __builtin_periscopes_to(region_name);
+    }
+    
+    // Safe region operations
+    func safe_alloc<T>(region_name, label) -> T {
+        constrain region_free(region_name) >= sizeof(T);
+        return __builtin_region_alloc(region_name, sizeof(T), label);
+    }
+} 

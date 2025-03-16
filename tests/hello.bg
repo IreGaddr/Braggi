@@ -1,0 +1,7 @@
+// Hello World test in Braggi
+// "As we say in Texas and Ireland: Hello, world, y'all!"
+
+func main() {
+    print("Hello, Braggi world!");
+    return 0;
+} 

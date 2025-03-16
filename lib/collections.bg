@@ -1,0 +1,55 @@
+// Braggi Collections Standard Library
+// "Good collections are like a well-organized ranch - everything has its place,
+// and you can find what you need faster than a jackrabbit on a hot day!"
+
+region CollectionsRegion(32768) regime RAND {
+    // Array operations
+    func array_create<T>(size, default_value: T) -> array<T> {
+        return __builtin_array_create(size, default_value);
+    }
+    
+    func array_length<T>(arr: array<T>) -> int {
+        return __builtin_array_length(arr);
+    }
+    
+    func array_get<T>(arr: array<T>, index: int) -> T {
+        constrain index >= 0;
+        constrain index < array_length(arr);
+        
+        return arr[index];
+    }
+    
+    func array_set<T>(arr: array<T>, index: int, value: T) -> void {
+        constrain index >= 0;
+        constrain index < array_length(arr);
+        
+        arr[index] = value;
+    }
+    
+    // Map operations
+    func map_create<K, V>() -> map<K, V> {
+        return __builtin_map_create();
+    }
+    
+    func map_get<K, V>(map: map<K, V>, key: K) -> V {
+        constrain map_contains(map, key);
+        
+        return map[key];
+    }
+    
+    func map_set<K, V>(map: map<K, V>, key: K, value: V) -> void {
+        map[key] = value;
+    }
+    
+    func map_contains<K, V>(map: map<K, V>, key: K) -> bool {
+        return __builtin_map_contains(map, key);
+    }
+    
+    func map_keys<K, V>(map: map<K, V>) -> array<K> {
+        return __builtin_map_keys(map);
+    }
+    
+    func map_values<K, V>(map: map<K, V>) -> array<V> {
+        return __builtin_map_values(map);
+    }
+} 

@@ -1,0 +1,93 @@
+// Math standard library for Braggi
+// "Math, like Irish whiskey, gets more powerful with every function!"
+
+// Import core types
+import core;
+
+// Mathematical constants
+const PI: Float = 3.14159265358979323846;
+const E: Float = 2.71828182845904523536;
+
+// Basic functions
+fn abs<T>(x: T) -> T {
+    if (less_than(x, 0)) {
+        return multiply(x, -1);
+    }
+    return x;
+}
+
+fn min<T>(a: T, b: T) -> T {
+    if (less_than(a, b)) {
+        return a;
+    }
+    return b;
+}
+
+fn max<T>(a: T, b: T) -> T {
+    if (greater_than(a, b)) {
+        return a;
+    }
+    return b;
+}
+
+// Trigonometric functions
+fn sin(x: Float) -> Float {
+    return primitive_sin(x);
+}
+
+fn cos(x: Float) -> Float {
+    return primitive_cos(x);
+}
+
+fn tan(x: Float) -> Float {
+    return primitive_tan(x);
+}
+
+// Exponential functions
+fn pow(base: Float, exponent: Float) -> Float {
+    return primitive_pow(base, exponent);
+}
+
+fn sqrt(x: Float) -> Float {
+    return primitive_sqrt(x);
+}
+
+fn log(x: Float) -> Float {
+    return primitive_log(x);
+}
+
+fn log10(x: Float) -> Float {
+    return primitive_log10(x);
+}
+
+// Rounding functions
+fn ceil(x: Float) -> Int {
+    return primitive_ceil(x);
+}
+
+fn floor(x: Float) -> Int {
+    return primitive_floor(x);
+}
+
+fn round(x: Float) -> Int {
+    return primitive_round(x);
+}
+
+// Random number generation
+fn random() -> Float {
+    return primitive_random();
+}
+
+fn random_range(min: Int, max: Int) -> Int {
+    return add(min, primitive_random_int(max - min));
+}
+
+// Export all math functionality
+export {
+    PI, E,
+    abs, min, max,
+    sin, cos, tan,
+    pow, sqrt, log, log10,
+    ceil, floor, round,
+    random, random_range
+} 

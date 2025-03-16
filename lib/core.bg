@@ -1,0 +1,55 @@
+// Braggi Core Library
+// "Every good language needs a core library that's as solid as Texas limestone!"
+
+// Print function
+func print(message) {
+    // Native implementation
+    __native_print(message);
+}
+
+// Math operations
+func add(a, b) {
+    return a + b;
+}
+
+func subtract(a, b) {
+    return a - b;
+}
+
+func multiply(a, b) {
+    return a * b;
+}
+
+func divide(a, b) {
+    if (b == 0) {
+        error("Division by zero is as impossible as finding a vegetarian BBQ in Texas!");
+    }
+    return a / b;
+}
+
+// String operations
+func concat(a, b) {
+    return a + b;
+}
+
+func repeat(str, count) {
+    var result = "";
+    for (var i = 0; i < count; i++) {
+        result = concat(result, str);
+    }
+    return result;
+}
+
+// Built-in error handling
+func error(message) {
+    // Native implementation
+    __native_error(message);
+}
+
+// Export the core library
+export {
+    print,
+    add, subtract, multiply, divide,
+    concat, repeat,
+    error
+}; 
