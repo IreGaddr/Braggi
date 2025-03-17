@@ -1,0 +1,83 @@
+// Howdy y'all! Welcome to the Quantum Rodeo! 🤠
+/* Let's wrangle some quantum states and
+   see what kind of constraints we can rustle up */
+
+// Define our quantum corral
+world QuantumRodeo {
+    // Some basic types to play with
+    let number_of_qubits: i32 = 42;
+    let success_rate: f64 = 0.99;
+
+    // Our quantum register for the rodeo
+    register main_register(number_of_qubits);
+    
+    // Bell state preparation constraint
+    constraint BellState {
+        restrict q1.entangled_with(q2);
+        restrict q1.state + q2.state == "|Φ+⟩";
+        propagate when_measured;
+    }
+
+    // A constraint that might collapse
+    constraint LassoConstraint {
+        restrict qubit_count > 3;
+        propagate when_measured;
+    }
+
+    // An entity with some quantum properties
+    entity QuantumCowboy {
+        component Position {
+            x: f32,
+            y: f32,
+            superposition: bool,
+            entangled_partner: Option<EntityId>
+        }
+
+        component Momentum {
+            dx: f32,
+            dy: f32,
+            phase: f64
+        }
+
+        // Quantum state component
+        component QuantumState {
+            state_vector: [complex; 2],
+            measured: bool
+        }
+    }
+
+    // Teleportation system - yee-haw!
+    system QuantumTeleport(QuantumState, Position) {
+        // Create Bell pair
+        prepare_bell_pair(q1, q2);
+        
+        // Entangle and measure
+        apply CNOT(source, q1);
+        apply H(source);
+        
+        let result = measure([source, q1]);
+        
+        // Classical channel transmission
+        transmit_classical(result, target_cowboy);
+        
+        // Apply corrections based on measurement
+        if result[0] { apply X(q2); }
+        if result[1] { apply Z(q2); }
+    }
+
+    // A system to update our quantum cowboys
+    system UpdateCowboys(Position, Momentum, QuantumState) {
+        let yell = "YEE-HAW!";
+
+        // Quantum operations with a Texas twist
+        seed random(42);
+        apply H(current_qubit);  // Hadamard gate for superposition
+        collapse when probability > 0.5;
+        
+        // Update position based on quantum measurement
+        if measured {
+            self.position.x += self.momentum.dx * dt;
+            self.position.y += self.momentum.dy * dt;
+        }
+    }
+} 

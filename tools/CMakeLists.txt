@@ -24,11 +24,11 @@ foreach(TEST_FILE ${TEST_FILES})
 endforeach()
 
 # Add a test target that runs all Braggi tests
-add_custom_target(run_all_tests
-    COMMAND ${CMAKE_BINARY_DIR}/bin/braggi_test_harness --test-dir=${CMAKE_BINARY_DIR}/tests --output-dir=${CMAKE_BINARY_DIR}/test_output
+add_custom_target(run_tools_tests
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/run_tools_tests.sh
     DEPENDS braggi_test_harness
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running all Braggi tests..."
+    COMMENT "Running Braggi tools tests..."
 )
 
 # Check if we have readline

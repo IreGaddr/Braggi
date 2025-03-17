@@ -52,7 +52,7 @@ typedef struct {
  * Tokenizer - Converts source code into tokens
  */
 typedef struct {
-    SourceFile* source;        /* Source file being tokenized */
+    Source* source;        /* Source file being tokenized */
     size_t position;           /* Current position in the source */
     Token current_token;       /* Current token */
     Token next_token;          /* Next token (for lookahead) */
@@ -63,7 +63,7 @@ typedef struct {
 /* Function prototypes */
 
 // Create a new tokenizer for a source file
-Tokenizer* braggi_tokenizer_create(SourceFile* source);
+Tokenizer* braggi_tokenizer_create(Source* source);
 
 // Destroy a tokenizer and free all resources
 void braggi_tokenizer_destroy(Tokenizer* tokenizer);
@@ -94,6 +94,17 @@ bool braggi_tokenizer_expect_operator(Tokenizer* tokenizer, const char* op);
 
 // Convert a token type to string for debugging
 const char* braggi_token_type_string(TokenType type);
+
+// Create a new token
+Token* braggi_token_create(TokenType type, char* text, SourcePosition position);
+
+// Destroy a token and free all resources
+void braggi_token_destroy(Token* token);
+
+// Tokenize an entire source file and return a vector of tokens
+// If skip_whitespace is true, whitespace tokens will not be included
+// If skip_comments is true, comment tokens will not be included
+Vector* braggi_tokenize_all(Source* source, bool skip_whitespace, bool skip_comments);
 
 /*
  * The following function should be defined elsewhere when State is properly defined

@@ -41,6 +41,12 @@ struct BraggiContext {
     
     // Builtin registry for standard library functions
     BraggiBuiltinRegistry* builtin_registry;
+    
+    // Output file path for code generation
+    char* output_file;
+    
+    // Flags for tracking context state
+    uint32_t flags;
 };
 
 #endif /* BRAGGI_CONTEXT_H */ 

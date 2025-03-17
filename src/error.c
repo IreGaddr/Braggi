@@ -94,7 +94,7 @@ Vector* braggi_error_get_all(void) {
     return global_error_handler->errors;
 }
 
-// Check if there are any errors in the global handler
+// Check if any errors have been reported
 bool braggi_error_has_errors(void) {
     if (!global_error_handler) {
         return false;
@@ -103,7 +103,7 @@ bool braggi_error_has_errors(void) {
     return braggi_vector_size(global_error_handler->errors) > 0;
 }
 
-// Check if there are any fatal errors in the global handler
+// Check if any fatal errors have been reported
 bool braggi_error_has_fatal(void) {
     if (!global_error_handler) {
         return false;
@@ -138,19 +138,13 @@ char* braggi_error_format(const Error* error) {
     // Convert category to string
     const char* category_str;
     switch (error->category) {
+        case ERROR_CATEGORY_GENERAL:   category_str = "general"; break;
         case ERROR_CATEGORY_SYNTAX:    category_str = "syntax"; break;
         case ERROR_CATEGORY_SEMANTIC:  category_str = "semantic"; break;
-        case ERROR_CATEGORY_TYPE:      category_str = "type"; break;
-        case ERROR_CATEGORY_REGION:    category_str = "region"; break;
-        case ERROR_CATEGORY_LIFETIME:  category_str = "lifetime"; break;
-        case ERROR_CATEGORY_PROPAGATION: category_str = "propagation"; break;
-        case ERROR_CATEGORY_CONSTRAINT: category_str = "constraint"; break;
-        case ERROR_CATEGORY_SYSTEM:    category_str = "system"; break;
         case ERROR_CATEGORY_IO:        category_str = "io"; break;
         case ERROR_CATEGORY_MEMORY:    category_str = "memory"; break;
-        case ERROR_CATEGORY_INTERNAL:  category_str = "internal"; break; 
-        case ERROR_CATEGORY_USER:      category_str = "user"; break;
-        case ERROR_CATEGORY_GENERAL:   category_str = "general"; break;
+        case ERROR_CATEGORY_CODEGEN:   category_str = "codegen"; break;
+        case ERROR_CATEGORY_SYSTEM:    category_str = "system"; break;
         default:                       category_str = "unknown"; break;
     }
     
@@ -212,6 +206,7 @@ void braggi_error_print_all_global(void) {
 void braggi_error_print_all(const ErrorHandler* handler, FILE* stream) {
     if (!handler || !stream) return;
     
+    fprintf(stream, "\n=== Braggi Errors ===\n");
     for (size_t i = 0; i < braggi_vector_size(handler->errors); i++) {
         Error* error = *(Error**)braggi_vector_get(handler->errors, i);
         if (!error) continue;
@@ -239,9 +234,11 @@ void braggi_error_clear(void) {
     braggi_error_handler_clear(global_error_handler);
 }
 
-// Count errors of a given severity or higher
+// Count errors by severity
 int braggi_error_count_by_severity(const ErrorHandler* handler, ErrorSeverity min_severity) {
-    if (!handler) return 0;
+    if (!handler) {
+        return 0;
+    }
     
     int count = 0;
     for (size_t i = 0; i < braggi_vector_size(handler->errors); i++) {
@@ -303,21 +300,14 @@ char* braggi_error_to_string(const Error* error) {
 // Get a string representation of an error category
 const char* braggi_error_category_to_string(ErrorCategory category) {
     switch (category) {
-        case ERROR_CATEGORY_NONE:       return "none";
-        case ERROR_CATEGORY_SYNTAX:     return "syntax";
-        case ERROR_CATEGORY_SEMANTIC:   return "semantic";
-        case ERROR_CATEGORY_TYPE:       return "type";
-        case ERROR_CATEGORY_REGION:     return "region";
-        case ERROR_CATEGORY_LIFETIME:   return "lifetime";
-        case ERROR_CATEGORY_PROPAGATION: return "propagation";
-        case ERROR_CATEGORY_CONSTRAINT: return "constraint";
-        case ERROR_CATEGORY_SYSTEM:     return "system";
-        case ERROR_CATEGORY_IO:         return "io";
-        case ERROR_CATEGORY_MEMORY:     return "memory";
-        case ERROR_CATEGORY_INTERNAL:   return "internal";
-        case ERROR_CATEGORY_USER:       return "user";
-        case ERROR_CATEGORY_GENERAL:    return "general";
-        default:                        return "unknown";
+        case ERROR_CATEGORY_GENERAL:   return "general";
+        case ERROR_CATEGORY_SYNTAX:    return "syntax";
+        case ERROR_CATEGORY_SEMANTIC:  return "semantic";
+        case ERROR_CATEGORY_IO:        return "io";
+        case ERROR_CATEGORY_MEMORY:    return "memory";
+        case ERROR_CATEGORY_CODEGEN:   return "codegen";
+        case ERROR_CATEGORY_SYSTEM:    return "system";
+        default:                       return "unknown";
     }
 }
 

@@ -1,8 +1,8 @@
-/* 
- * Braggi - Error Handling System
+/*
+ * Braggi - Error Handling Interface
  * 
- * "In Texas, we don't just tell you something's wrong - 
- * we tell you what, where, why, and how to fix it!" - Prairie wisdom
+ * "In Texas, we don't hide from problems - we lasso 'em, tag 'em, and solve 'em!" 
+ * - Texas Error Wrangler
  */
 
 #ifndef BRAGGI_ERROR_H
@@ -16,25 +16,63 @@
 #include "braggi/util/vector.h"
 #include "source_position.h"
 
-/*
- * Error category - what type of error occurred
- */
+// Error severity levels
 typedef enum {
-    ERROR_CATEGORY_NONE = 0,        /* No error */
-    ERROR_CATEGORY_SYNTAX,          /* Syntax error */
-    ERROR_CATEGORY_SEMANTIC,        /* Semantic error */
-    ERROR_CATEGORY_TYPE,            /* Type error */
-    ERROR_CATEGORY_REGION,          /* Region error */
-    ERROR_CATEGORY_LIFETIME,        /* Lifetime error */
-    ERROR_CATEGORY_PROPAGATION,     /* Token propagation error */
-    ERROR_CATEGORY_CONSTRAINT,      /* Constraint error */
-    ERROR_CATEGORY_SYSTEM,          /* System error */
-    ERROR_CATEGORY_IO,              /* I/O error */
-    ERROR_CATEGORY_MEMORY,          /* Memory error */
-    ERROR_CATEGORY_INTERNAL,        /* Internal error */
-    ERROR_CATEGORY_USER,            /* User-defined error */
-    ERROR_CATEGORY_GENERAL          /* General error */
+    ERROR_LEVEL_INFO,     // Informational message
+    ERROR_LEVEL_WARNING,  // Warning, but can continue
+    ERROR_LEVEL_ERROR,    // Error, operation failed but can continue
+    ERROR_LEVEL_FATAL     // Fatal error, cannot continue
+} ErrorLevel;
+
+// Error categories
+typedef enum {
+    ERROR_CATEGORY_GENERAL,   // General errors
+    ERROR_CATEGORY_SYNTAX,    // Syntax errors
+    ERROR_CATEGORY_SEMANTIC,  // Semantic errors
+    ERROR_CATEGORY_IO,        // I/O errors
+    ERROR_CATEGORY_MEMORY,    // Memory errors
+    ERROR_CATEGORY_CODEGEN,   // Code generation errors
+    ERROR_CATEGORY_SYSTEM     // System errors
 } ErrorCategory;
+
+// Error handler interface
+typedef struct ErrorHandler {
+    // Data storage
+    Vector* errors;              // Vector of Error pointers
+    void* user_data;             // User-provided context data
+    
+    // Context for the error handler
+    void* context;
+    
+    // Error callback
+    void (*error)(struct ErrorHandler* handler, const char* message);
+    
+    // Warning callback
+    void (*warning)(struct ErrorHandler* handler, const char* message);
+    
+    // Set error source file and line (optional)
+    void (*set_source)(struct ErrorHandler* handler, const char* file, int line);
+    
+    // Get last error message (optional)
+    const char* (*get_last_error)(struct ErrorHandler* handler);
+    
+    // Get error count (optional)
+    int (*get_error_count)(struct ErrorHandler* handler);
+    
+    // Reset error state (optional)
+    void (*reset)(struct ErrorHandler* handler);
+} ErrorHandler;
+
+// Extended error information
+typedef struct ErrorInfo {
+    ErrorLevel level;           // Severity level
+    ErrorCategory category;     // Error category
+    const char* message;        // Error message
+    const char* source_file;    // Source file where error occurred
+    int source_line;            // Line number where error occurred
+    uint64_t error_code;        // Error code (if applicable)
+    void* context;              // Additional context (if applicable)
+} ErrorInfo;
 
 /*
  * Error severity - how serious the error is
@@ -60,14 +98,6 @@ typedef struct Error {
     const char* detail;             /* Detailed explanation (or NULL) */
     void* context;                  /* Additional context (or NULL) */
 } Error;
-
-/*
- * Error handler for collecting and reporting errors
- */
-typedef struct ErrorHandler {
-    Vector* errors;            /* Collection of errors */
-    void* user_data;          /* User-defined data */
-} ErrorHandler;
 
 /* Initialize the error system */
 void braggi_error_init(void);
@@ -171,5 +201,17 @@ const char* braggi_error_get_details(const Error* error);
 /* Helper functions */
 const char* braggi_error_category_to_string(ErrorCategory category);
 const char* braggi_error_severity_to_string(ErrorSeverity severity);
+
+/* Report an error with extended information */
+void braggi_report_error(ErrorHandler* handler, ErrorInfo* info);
+
+/* Report a simple error */
+void braggi_report_simple_error(ErrorHandler* handler, 
+                               ErrorLevel level, 
+                               ErrorCategory category,
+                               const char* message);
+
+/* Get a string representation of an error level */
+const char* braggi_error_level_string(ErrorLevel level);
 
 #endif /* BRAGGI_ERROR_H */ 

@@ -11,9 +11,10 @@
 #include <stdbool.h>
 
 #include "braggi/state.h"
+#include "braggi/entropy.h" // Include entropy.h for EntropyState
 
-State* braggi_state_create(uint32_t id, uint32_t type, const char* label, void* data, uint32_t probability) {
-    State* state = (State*)malloc(sizeof(State));
+EntropyState* braggi_state_create(uint32_t id, uint32_t type, const char* label, void* data, uint32_t probability) {
+    EntropyState* state = (EntropyState*)malloc(sizeof(EntropyState));
     if (!state) {
         return NULL;
     }
@@ -27,7 +28,7 @@ State* braggi_state_create(uint32_t id, uint32_t type, const char* label, void* 
     return state;
 }
 
-void braggi_state_destroy(State* state) {
+void braggi_state_destroy_wrapper(EntropyState* state) {
     if (!state) {
         return;
     }
@@ -42,7 +43,7 @@ void braggi_state_destroy(State* state) {
     free(state);
 }
 
-bool braggi_state_equals(const State* a, const State* b) {
+bool braggi_state_equals(const EntropyState* a, const EntropyState* b) {
     if (!a || !b) {
         return false;
     }
@@ -51,7 +52,7 @@ bool braggi_state_equals(const State* a, const State* b) {
     return a->id == b->id;
 }
 
-State* braggi_state_copy(const State* state) {
+EntropyState* braggi_state_copy(const EntropyState* state) {
     if (!state) {
         return NULL;
     }
@@ -59,7 +60,7 @@ State* braggi_state_copy(const State* state) {
     return braggi_state_create(state->id, state->type, state->label, state->data, state->probability);
 }
 
-char* braggi_state_to_string(const State* state) {
+char* braggi_state_to_string(const EntropyState* state) {
     if (!state) {
         return strdup("<null>");
     }

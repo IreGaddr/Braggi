@@ -205,6 +205,11 @@ bool braggi_vector_remove_at(Vector* vector, size_t index);
  */
 bool braggi_vector_remove(Vector* vector, const void* elem);
 
+/**
+ * Erase an element at the specified index (similar to remove_at but without error message)
+ */
+bool braggi_vector_erase(Vector* vector, size_t index);
+
 // Convenience function to get the last element
 static inline void* braggi_vector_back(const Vector* vector) {
     if (!vector || vector->size == 0) return NULL;

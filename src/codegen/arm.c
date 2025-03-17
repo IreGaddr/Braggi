@@ -6,8 +6,11 @@
  */
 
 #include "braggi/codegen.h"
+#include "braggi/codegen_arch.h"
+#include "braggi/region.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 // ARM register information
 typedef enum {
@@ -22,11 +25,11 @@ typedef enum {
     ARM_REG_R8,
     ARM_REG_R9,
     ARM_REG_R10,
-    ARM_REG_R11,
-    ARM_REG_R12,
-    ARM_REG_SP,
-    ARM_REG_LR,
-    ARM_REG_PC
+    ARM_REG_R11,  // Frame pointer
+    ARM_REG_R12,  // IP (Intra-Procedure call scratch register)
+    ARM_REG_SP,   // Stack pointer (R13)
+    ARM_REG_LR,   // Link register (R14)
+    ARM_REG_PC    // Program counter (R15)
 } ARMRegister;
 
 // ARM instruction set
@@ -36,88 +39,325 @@ typedef enum {
     ARM_MODE_THUMB2  // Enhanced Thumb mode
 } ARMMode;
 
-// ARM-specific code generation context
-typedef struct ARMContext {
-    // ARM-specific state
-    uint8_t* code_buffer;
-    size_t code_size;
-    size_t code_capacity;
-    
-    // Instruction set mode
+// ARM-specific code generation data
+typedef struct {
+    // Current ARM mode
     ARMMode mode;
     
-    // Register allocation state
-    bool register_used[16];  // Track register usage
+    // Register allocation tracking
+    uint32_t used_registers;
     
-    // Procedure linkage information
-    size_t stack_size;
-} ARMContext;
+    // Current stack frame size
+    int32_t stack_size;
+    
+    // Current function depth
+    int32_t func_depth;
+    
+    // Region tracking
+    Vector* active_regions;
+    
+    // Assembly output buffer
+    char* asm_buffer;
+    size_t asm_size;
+    size_t asm_capacity;
+} ARMData;
 
-// Initialize ARM code generation
-bool braggi_codegen_init_arm(CodeGenContext* context) {
-    if (!context) return false;
-    
-    // Allocate ARM-specific data
-    ARMContext* arm_ctx = (ARMContext*)malloc(sizeof(ARMContext));
-    if (!arm_ctx) return false;
-    
-    // Initialize ARM context
-    memset(arm_ctx, 0, sizeof(ARMContext));
-    arm_ctx->code_capacity = 4096;  // Start with 4KB code buffer
-    arm_ctx->code_buffer = (uint8_t*)malloc(arm_ctx->code_capacity);
-    arm_ctx->mode = ARM_MODE_THUMB2;  // Default to Thumb2 for efficiency
-    
-    if (!arm_ctx->code_buffer) {
-        free(arm_ctx);
+// Forward declarations of internal functions
+static bool arm_init(CodeGenerator* generator, ErrorHandler* error_handler);
+static void arm_destroy(CodeGenerator* generator);
+static bool arm_generate(CodeGenerator* generator, EntropyField* field);
+static bool arm_emit(CodeGenerator* generator, const char* filename, OutputFormat format);
+static bool arm_register_function(CodeGenerator* generator, const char* name, void* func_ptr);
+static bool arm_optimize(CodeGenerator* generator, int level);
+static bool arm_generate_debug_info(CodeGenerator* generator, bool enable);
+
+// Append assembly text to the buffer
+static bool append_asm(ARMData* data, const char* text) {
+    if (!data || !text) {
         return false;
     }
     
-    context->arch_specific_data = arm_ctx;
-    return true;
-}
-
-// Generate ARM function prologue
-static bool generate_function_prologue(CodeGenContext* context, size_t stack_space) {
-    ARMContext* arm_ctx = (ARMContext*)context->arch_specific_data;
+    size_t len = strlen(text);
     
-    // TODO: Implement proper ARM function prologue
-    // - Push link register and frame pointer
-    // - Update stack pointer
-    // - Save callee-saved registers
-    
-    arm_ctx->stack_size = stack_space;
-    return true;
-}
-
-// Generate ARM function epilogue
-static bool generate_function_epilogue(CodeGenContext* context) {
-    ARMContext* arm_ctx = (ARMContext*)context->arch_specific_data;
-    
-    // TODO: Implement proper ARM function epilogue
-    // - Restore callee-saved registers
-    // - Pop frame pointer and link register
-    // - Return
-    
-    return true;
-}
-
-// Clean up ARM code generation
-static void braggi_codegen_cleanup_arm(CodeGenContext* context) {
-    if (context && context->arch_specific_data) {
-        ARMContext* arm_ctx = (ARMContext*)context->arch_specific_data;
-        if (arm_ctx->code_buffer) {
-            free(arm_ctx->code_buffer);
+    // Check if we need to resize the buffer
+    if (data->asm_size + len + 1 > data->asm_capacity) {
+        size_t new_capacity = data->asm_capacity * 2;
+        if (new_capacity < data->asm_size + len + 1) {
+            new_capacity = data->asm_size + len + 1 + 1024;  // Add some extra space
         }
-        free(arm_ctx);
-        context->arch_specific_data = NULL;
+        
+        char* new_buffer = realloc(data->asm_buffer, new_capacity);
+        if (!new_buffer) {
+            return false;  // Allocation failed
+        }
+        
+        data->asm_buffer = new_buffer;
+        data->asm_capacity = new_capacity;
     }
+    
+    // Append the text
+    strcpy(data->asm_buffer + data->asm_size, text);
+    data->asm_size += len;
+    
+    return true;
 }
 
-// ARM instruction encoding helpers would go here
-// ...
+// Generate function prologue
+static bool generate_function_prologue(CodeGenerator* generator, const char* func_name) {
+    if (!generator || !generator->arch_data || !func_name) {
+        return false;
+    }
+    
+    ARMData* data = (ARMData*)generator->arch_data;
+    
+    // Standard ARM function prologue
+    char buffer[1024];
+    snprintf(buffer, sizeof(buffer), 
+             "\n.global %s\n"
+             "%s:\n"
+             "    push {fp, lr}\n"  // Save frame pointer and link register
+             "    add fp, sp, #4\n" // Set up frame pointer
+             "    sub sp, sp, #%d\n", // Reserve stack space
+             func_name, func_name, 
+             data->stack_size);
+    
+    if (!append_asm(data, buffer)) {
+        return false;
+    }
+    
+    // Update function depth tracker
+    data->func_depth++;
+    
+    return true;
+}
 
-// Register ARM backend with the code generation system
+// Generate function epilogue
+static bool generate_function_epilogue(CodeGenerator* generator) {
+    if (!generator || !generator->arch_data) {
+        return false;
+    }
+    
+    ARMData* data = (ARMData*)generator->arch_data;
+    
+    // Standard ARM function epilogue
+    if (!append_asm(data, "    sub sp, fp, #4\n"    // Restore stack pointer
+                          "    pop {fp, pc}\n")) {  // Restore frame pointer and return
+        return false;
+    }
+    
+    // Update function depth tracker
+    data->func_depth--;
+    
+    return true;
+}
+
+// Initialize the ARM code generator
+static bool arm_init(CodeGenerator* generator, ErrorHandler* error_handler) {
+    if (!generator) {
+        return false;
+    }
+    
+    // Create and initialize ARM-specific data
+    ARMData* data = malloc(sizeof(ARMData));
+    if (!data) {
+        if (error_handler) {
+            error_handler->error(error_handler, "Failed to allocate memory for ARM code generator");
+        }
+        return false;
+    }
+    
+    // Initialize the data
+    memset(data, 0, sizeof(ARMData));
+    data->mode = ARM_MODE_ARM;  // Default to standard ARM mode
+    
+    // Initialize assembly buffer
+    data->asm_capacity = 4096;  // Initial buffer size
+    data->asm_buffer = malloc(data->asm_capacity);
+    if (!data->asm_buffer) {
+        free(data);
+        if (error_handler) {
+            error_handler->error(error_handler, "Failed to allocate memory for ARM assembly buffer");
+        }
+        return false;
+    }
+    data->asm_buffer[0] = '\0';
+    data->asm_size = 0;
+    
+    // Initialize region tracking
+    data->active_regions = braggi_vector_create(sizeof(Region*));
+    if (!data->active_regions) {
+        free(data->asm_buffer);
+        free(data);
+        if (error_handler) {
+            error_handler->error(error_handler, "Failed to allocate memory for ARM region tracking");
+        }
+        return false;
+    }
+    
+    // Assign the data to the generator
+    generator->arch_data = data;
+    
+    return true;
+}
+
+// Clean up the ARM code generator
+static void arm_destroy(CodeGenerator* generator) {
+    if (!generator || !generator->arch_data) {
+        return;
+    }
+    
+    ARMData* data = (ARMData*)generator->arch_data;
+    
+    // Free assembly buffer
+    if (data->asm_buffer) {
+        free(data->asm_buffer);
+        data->asm_buffer = NULL;
+    }
+    
+    // Free active regions vector
+    if (data->active_regions) {
+        braggi_vector_destroy(data->active_regions);
+        data->active_regions = NULL;
+    }
+    
+    // Free the data itself
+    free(data);
+    generator->arch_data = NULL;
+}
+
+// Generate code from the entropy field
+static bool arm_generate(CodeGenerator* generator, EntropyField* field) {
+    if (!generator || !generator->arch_data || !field) {
+        return false;
+    }
+    
+    ARMData* data = (ARMData*)generator->arch_data;
+    
+    // Header comments and directives
+    if (!append_asm(data, "@ Generated by Braggi Compiler - ARM Backend\n")) {
+        return false;
+    }
+    
+    if (!append_asm(data, ".syntax unified\n")) {
+        return false;
+    }
+    
+    if (data->mode == ARM_MODE_THUMB || data->mode == ARM_MODE_THUMB2) {
+        if (!append_asm(data, ".thumb\n")) {
+            return false;
+        }
+    } else {
+        if (!append_asm(data, ".arm\n")) {
+            return false;
+        }
+    }
+    
+    // Start main function
+    data->stack_size = 16;  // Default stack size for main
+    if (!generate_function_prologue(generator, "main")) {
+        return false;
+    }
+    
+    // Simple return 0 for now
+    if (!append_asm(data, "    mov r0, #0\n")) {
+        return false;
+    }
+    
+    // End main function
+    if (!generate_function_epilogue(generator)) {
+        return false;
+    }
+    
+    return true;
+}
+
+// Write output to a file
+static bool arm_emit(CodeGenerator* generator, const char* filename, OutputFormat format) {
+    if (!generator || !generator->arch_data || !filename) {
+        return false;
+    }
+    
+    ARMData* data = (ARMData*)generator->arch_data;
+    
+    // Open output file
+    FILE* file = fopen(filename, "w");
+    if (!file) {
+        return false;
+    }
+    
+    // Write assembly
+    if (data->asm_buffer && data->asm_size > 0) {
+        fprintf(file, "%s", data->asm_buffer);
+    } else {
+        fprintf(file, "@ Empty ARM assembly generated by Braggi\n");
+    }
+    
+    fclose(file);
+    return true;
+}
+
+// Register an external function
+static bool arm_register_function(CodeGenerator* generator, const char* name, void* func_ptr) {
+    if (!generator || !generator->arch_data || !name || !func_ptr) {
+        return false;
+    }
+    
+    // This is a placeholder for future implementation
+    // In a real implementation, we would register the function in a way
+    // that allows it to be called from generated code
+    
+    return true;
+}
+
+// Enable optimization
+static bool arm_optimize(CodeGenerator* generator, int level) {
+    if (!generator || !generator->arch_data || level < 0 || level > 3) {
+        return false;
+    }
+    
+    // This is a placeholder for future implementation
+    // In a real implementation, we would adjust various optimization settings
+    // based on the requested level
+    
+    return true;
+}
+
+// Enable/disable debug information generation
+static bool arm_generate_debug_info(CodeGenerator* generator, bool enable) {
+    if (!generator || !generator->arch_data) {
+        return false;
+    }
+    
+    // This is a placeholder for future implementation
+    // In a real implementation, we would enable/disable debug info generation
+    
+    return true;
+}
+
+// ARM initialization function for braggi_codegen.h
+void braggi_codegen_arm_init(void) {
+    // This would register our ARM backend with the central code generator system
+}
+
+// ARM backend registration function for codegen_arch.h
 void braggi_register_arm_backend(void) {
-    // Register ARM-specific functions with the code generator
-    // This would be called during compiler initialization
+    // Register with code generator system
+    // This would register the ARM functions with a central registry
+    CodeGenerator generator;
+    
+    generator.name = "arm";
+    generator.description = "ARM (32-bit) code generator";
+    generator.arch_data = NULL;
+    
+    generator.init = arm_init;
+    generator.destroy = arm_destroy;
+    generator.generate = arm_generate;
+    generator.emit = arm_emit;
+    generator.register_function = arm_register_function;
+    generator.optimize = arm_optimize;
+    generator.generate_debug_info = arm_generate_debug_info;
+    
+    // In a real implementation, we would register this with a central system
+    // For now, just print that we've initialized
+    printf("Braggi ARM backend initialized\n");
 } 

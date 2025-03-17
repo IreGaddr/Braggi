@@ -20,12 +20,7 @@ typedef struct EntityMask {
     uint64_t bits[4];  // Support up to 256 component types
 } EntityMask;
 
-// Define the EntityQuery type
-typedef struct EntityQuery {
-    ECSWorld* world;
-    ComponentMask required_components;
-    size_t position;
-} EntityQuery;
+// EntityQuery is now defined in ecs.h, so we don't redefine it here
 
 // Legacy ECS type for backward compatibility
 typedef struct ECS {
@@ -44,7 +39,7 @@ typedef ComponentTypeID ComponentID;
 // Forward declare mask functions to avoid implicit declaration warnings
 void braggi_ecs_mask_set(ComponentMask* mask, ComponentTypeID component);
 void braggi_ecs_mask_clear(ComponentMask* mask, ComponentTypeID component);
-bool braggi_ecs_mask_has(ComponentMask* mask, ComponentTypeID component);
+bool braggi_ecs_mask_has(ComponentMask mask, ComponentTypeID component);
 bool braggi_ecs_mask_contains(ComponentMask* container, ComponentMask* subset);
 
 // Forward declare the functions for proper compilation
@@ -166,52 +161,60 @@ static char* ecs_strdup(ECSWorld* world, const char* str) {
  * Initialize the ECS world and prepare it for use
  */
 ECSWorld* braggi_ecs_world_create(size_t entity_capacity, size_t max_component_types) {
-    ECSWorld* world = (ECSWorld*)malloc(sizeof(ECSWorld));
+    // Validate inputs
+    if (entity_capacity == 0) {
+        entity_capacity = 1000; // Default reasonable capacity
+    }
+    
+    if (max_component_types == 0) {
+        max_component_types = MAX_COMPONENT_TYPES; // Use the defined constant
+    }
+    
+    // Allocate the world structure
+    ECSWorld* world = (ECSWorld*)calloc(1, sizeof(ECSWorld));
     if (!world) {
         return NULL;
     }
-
-    // Initialize capacity
+    
+    // Initialize the world properties
     world->entity_capacity = entity_capacity;
-    world->next_entity_id = 0;
+    world->next_entity_id = 1; // Start entity IDs at 1, reserve 0 as invalid
     world->component_type_count = 0;
+    world->max_component_types = max_component_types;
     
-    // Initialize free entities tracking
-    world->free_entities = braggi_vector_create(sizeof(EntityID));
-    if (!world->free_entities) {
-        free(world);
-        return NULL;
-    }
-    
-    // Initialize component arrays
+    // Allocate the component arrays array
     world->component_arrays = (ComponentArray**)calloc(max_component_types, sizeof(ComponentArray*));
     if (!world->component_arrays) {
-        braggi_vector_destroy(world->free_entities);
         free(world);
         return NULL;
     }
     
-    // Initialize systems
-    world->systems = braggi_vector_create(sizeof(System*));
-    if (!world->systems) {
-        free(world->component_arrays);
-        braggi_vector_destroy(world->free_entities);
-        free(world);
-        return NULL;
-    }
-    
-    // Initialize component masks for entities
+    // Allocate the entity component masks
     world->entity_component_masks = (ComponentMask*)calloc(entity_capacity, sizeof(ComponentMask));
     if (!world->entity_component_masks) {
-        braggi_vector_destroy(world->systems);
         free(world->component_arrays);
-        braggi_vector_destroy(world->free_entities);
         free(world);
         return NULL;
     }
     
-    // Set maximum component types
-    world->max_component_types = max_component_types;
+    // Create the free entities vector
+    world->free_entities = braggi_vector_create(sizeof(EntityID));
+    if (!world->free_entities) {
+        free(world->entity_component_masks);
+        free(world->component_arrays);
+        free(world);
+        return NULL;
+    }
+    
+    // Create the systems vector
+    world->systems = braggi_vector_create(sizeof(System*));
+    if (!world->systems) {
+        braggi_vector_destroy(world->free_entities);
+        free(world->entity_component_masks);
+        free(world->component_arrays);
+        free(world);
+        return NULL;
+    }
     
     return world;
 }
@@ -259,31 +262,105 @@ void braggi_ecs_world_destroy(ECSWorld* world) {
         return;
     }
     
-    // Free all component arrays
-    for (size_t i = 0; i < world->component_type_count; i++) {
-        if (world->component_arrays[i]) {
-            // Free the component array data
-            free(world->component_arrays[i]->data);
-            free(world->component_arrays[i]->entity_to_index);
-            free(world->component_arrays[i]->index_to_entity);
-            free(world->component_arrays[i]);
+    fprintf(stderr, "DEBUG: Starting ECS world destruction at %p\n", (void*)world);
+    
+    // First destroy all systems before we destroy component arrays
+    // This prevents systems from trying to access components that no longer exist
+    if (world->systems) {
+        fprintf(stderr, "DEBUG: Destroying %zu systems\n", braggi_vector_size(world->systems));
+        
+        for (size_t i = 0; i < braggi_vector_size(world->systems); i++) {
+            System** system_ptr = (System**)braggi_vector_get(world->systems, i);
+            if (system_ptr && *system_ptr) {
+                fprintf(stderr, "DEBUG: Destroying system at %p\n", (void*)*system_ptr);
+                braggi_ecs_system_destroy(*system_ptr);
+                *system_ptr = NULL; // Set to NULL to prevent double-free
+            }
         }
     }
     
-    // Free component arrays array
-    free(world->component_arrays);
-    
-    // Free systems (but not the systems themselves, as they might be managed elsewhere)
-    braggi_vector_destroy(world->systems);
+    // Destroy all component arrays
+    if (world->component_arrays) {
+        fprintf(stderr, "DEBUG: Destroying component arrays\n");
+        
+        for (size_t i = 0; i < world->max_component_types; i++) {
+            if (world->component_arrays[i]) {
+                fprintf(stderr, "DEBUG: Destroying component array %zu\n", i);
+                
+                // Free components if needed and if destructor exists
+                if (world->component_arrays[i]->destructor && world->component_arrays[i]->data) {
+                    for (size_t j = 0; j < world->component_arrays[i]->size; j++) {
+                        // Check we're within the valid component size
+                        if (j >= world->component_arrays[i]->size) {
+                            break;
+                        }
+                        
+                        // Get the component pointer with safety checks
+                        void* component = NULL;
+                        size_t component_size = world->component_arrays[i]->component_size;
+                        if (component_size > 0) {
+                            component = world->component_arrays[i]->data + (j * component_size);
+                        }
+                        
+                        // Call the destructor if component is valid
+                        if (component) {
+                            world->component_arrays[i]->destructor(component);
+                        }
+                    }
+                }
+                
+                // Free the component array resources
+                if (world->component_arrays[i]->data) {
+                    free(world->component_arrays[i]->data);
+                    world->component_arrays[i]->data = NULL;
+                }
+                
+                if (world->component_arrays[i]->entity_to_index) {
+                    free(world->component_arrays[i]->entity_to_index);
+                    world->component_arrays[i]->entity_to_index = NULL;
+                }
+                
+                if (world->component_arrays[i]->index_to_entity) {
+                    free(world->component_arrays[i]->index_to_entity);
+                    world->component_arrays[i]->index_to_entity = NULL;
+                }
+                
+                // Free the component array itself
+                free(world->component_arrays[i]);
+                world->component_arrays[i] = NULL;
+            }
+        }
+        
+        // Free the component arrays array
+        free(world->component_arrays);
+        world->component_arrays = NULL;
+    }
     
     // Free entity component masks
-    free(world->entity_component_masks);
+    if (world->entity_component_masks) {
+        free(world->entity_component_masks);
+        world->entity_component_masks = NULL;
+    }
     
-    // Free free entities vector
-    braggi_vector_destroy(world->free_entities);
+    // Free vectors
+    if (world->free_entities) {
+        braggi_vector_destroy(world->free_entities);
+        world->free_entities = NULL;
+    }
     
-    // Free the world itself
+    if (world->systems) {
+        braggi_vector_destroy(world->systems);
+        world->systems = NULL;
+    }
+    
+    // Finally, free the world itself
+    fprintf(stderr, "DEBUG: ECS world destruction complete\n");
     free(world);
+}
+
+void braggi_ecs_destroy_world(ECSWorld* world) {
+    // Simple wrapper that calls the world_destroy function
+    braggi_ecs_world_destroy(world);
 }
 
 // Ensure entity capacity
@@ -438,11 +515,11 @@ static bool braggi_ecs_ensure_component_capacity(ECSWorld* world, ComponentTypeI
     return true;
 }
 
-/*
- * Register a new component type with the ECS world
+/**
+ * Register a component type with detailed information
  */
-ComponentTypeID braggi_ecs_register_component(ECSWorld* world, size_t component_size) {
-    if (!world || world->component_type_count >= world->max_component_types) {
+ComponentTypeID braggi_ecs_register_component_type(ECSWorld* world, const ComponentTypeInfo* info) {
+    if (!world || !info || world->component_type_count >= world->max_component_types) {
         return INVALID_COMPONENT_TYPE;
     }
     
@@ -450,9 +527,14 @@ ComponentTypeID braggi_ecs_register_component(ECSWorld* world, size_t component_
     ComponentTypeID type_id = world->component_type_count;
     
     // Create a new component array for this type
-    ComponentArray* component_array = braggi_component_array_create(world->entity_capacity, component_size);
+    ComponentArray* component_array = braggi_component_array_create(world->entity_capacity, info->size);
     if (!component_array) {
         return INVALID_COMPONENT_TYPE;
+    }
+    
+    // Store the destructor function if provided
+    if (info->destructor) {
+        component_array->destructor = info->destructor;
     }
     
     // Store the component array
@@ -646,7 +728,7 @@ bool braggi_ecs_has_component(ECSWorld* world, EntityID entity, ComponentTypeID 
     }
     
     // Check the component bit in the entity mask
-    return braggi_ecs_mask_has(&world->entity_component_masks[entity], type);
+    return braggi_ecs_mask_has(world->entity_component_masks[entity], type);
 }
 
 /*
@@ -689,7 +771,7 @@ System* braggi_ecs_system_create(ComponentMask component_mask, SystemUpdateFunc 
     
     system->component_mask = component_mask;
     system->update_func = update_func;
-    system->user_data = user_data;
+    system->context = user_data;
     
     return system;
 }
@@ -698,9 +780,22 @@ System* braggi_ecs_system_create(ComponentMask component_mask, SystemUpdateFunc 
  * Destroy a system
  */
 void braggi_ecs_system_destroy(System* system) {
-    if (system) {
-        free(system);
+    if (!system) {
+        return;
     }
+    
+    fprintf(stderr, "DEBUG: Destroying system at %p\n", (void*)system);
+    
+    // Clean up context if needed
+    if (system->context) {
+        fprintf(stderr, "DEBUG: Freeing system context at %p\n", system->context);
+        free(system->context);
+        system->context = NULL;
+    }
+    
+    // Free the system itself
+    free(system);
+    fprintf(stderr, "DEBUG: System destroyed\n");
 }
 
 // Create a query for entities matching a component mask
@@ -865,6 +960,7 @@ bool braggi_ecs_add_component_legacy(ECS* ecs, EntityID entity, ComponentID comp
         if (!ecs->components[component]) {
             return false;
         }
+
     }
     
     // Store the component data
@@ -885,8 +981,8 @@ void braggi_ecs_mask_clear(ComponentMask* mask, ComponentTypeID component) {
     *mask &= ~(1ULL << component);
 }
 
-bool braggi_ecs_mask_has(ComponentMask* mask, ComponentTypeID component) {
-    return (*mask & (1ULL << component)) != 0;
+bool braggi_ecs_mask_has(ComponentMask mask, ComponentTypeID component) {
+    return (mask & (1ULL << component)) != 0;
 }
 
 bool braggi_ecs_mask_contains(ComponentMask* container, ComponentMask* subset) {
@@ -896,7 +992,7 @@ bool braggi_ecs_mask_contains(ComponentMask* container, ComponentMask* subset) {
 /*
  * Add a component to an entity
  */
-void braggi_ecs_add_component(ECSWorld* world, EntityID entity, ComponentTypeID component_type, void* component_data) {
+void braggi_ecs_add_component_data(ECSWorld* world, EntityID entity, ComponentTypeID component_type, void* component_data) {
     if (!world || entity == INVALID_ENTITY) {
         return;
     }
@@ -917,8 +1013,42 @@ void braggi_ecs_add_component(ECSWorld* world, EntityID entity, ComponentTypeID 
     // Add the component to the array
     braggi_component_array_add(world->component_arrays[component_type], entity, component_data);
     
-    // Set the component bit in the entity's mask
+    // Update the entity's component mask
     braggi_ecs_mask_set(&world->entity_component_masks[entity], component_type);
+}
+
+// Add the correct implementation of braggi_ecs_add_component that returns void*
+void* braggi_ecs_add_component(ECSWorld* world, EntityID entity, ComponentTypeID component_type) {
+    if (!world || entity == INVALID_ENTITY) {
+        return NULL;
+    }
+    
+    // Ensure we have capacity for this component type
+    if (!braggi_ecs_ensure_component_capacity(world, component_type)) {
+        return NULL;
+    }
+    
+    // Create component array if it doesn't exist
+    if (!world->component_arrays[component_type]) {
+        world->component_arrays[component_type] = braggi_component_array_create(16, sizeof(void*));
+        if (!world->component_arrays[component_type]) {
+            return NULL;
+        }
+    }
+    
+    // Allocate memory for the component
+    void* component_data = calloc(1, world->component_arrays[component_type]->component_size);
+    if (!component_data) {
+        return NULL;
+    }
+    
+    // Add the component to the array
+    braggi_component_array_add(world->component_arrays[component_type], entity, component_data);
+    
+    // Update the entity's component mask
+    braggi_ecs_mask_set(&world->entity_component_masks[entity], component_type);
+    
+    return component_data;
 }
 
 /*
@@ -1011,4 +1141,131 @@ void braggi_component_array_remove(ComponentArray* array, EntityID entity) {
     
     // Decrement the size
     array->size--;
+}
+
+/*
+ * Execute a specific system in the ECS world
+ */
+bool braggi_ecs_update_system(ECSWorld* world, System* system, float delta_time) {
+    if (!world || !system || !system->update_func) {
+        return false;
+    }
+    
+    // Execute the system's update function
+    system->update_func(world, system, delta_time);
+    
+    return true;
+}
+
+/*
+ * Get a system by name
+ *
+ * "Finding a system by name is like yellin' for your favorite dog in a pack - 
+ * the right one oughta come runnin'!" - Texas ECS wisdom
+ */
+System* braggi_ecs_get_system_by_name(ECSWorld* world, const char* name) {
+    if (!world || !name || !world->systems) {
+        return NULL;
+    }
+    
+    // Iterate through all systems in the world
+    for (size_t i = 0; i < braggi_vector_size(world->systems); i++) {
+        System* system = *(System**)braggi_vector_get(world->systems, i);
+        if (system && system->name && strcmp(system->name, name) == 0) {
+            return system;
+        }
+    }
+    
+    return NULL; // Not found
+}
+
+/*
+ * Add a system to the ECS world
+ */
+bool braggi_ecs_add_system(ECSWorld* world, System* system) {
+    if (!world || !system) {
+        return false;
+    }
+    
+    // Add the system to the world
+    bool result = braggi_vector_push(world->systems, &system);
+    
+    return result;
+}
+
+/*
+ * Create a system from a SystemInfo structure
+ */
+System* braggi_ecs_create_system(const SystemInfo* info) {
+    if (!info || !info->update_func) {
+        return NULL;
+    }
+    
+    System* system = (System*)malloc(sizeof(System));
+    if (!system) {
+        return NULL;
+    }
+    
+    system->name = info->name ? info->name : "Anonymous System";
+    system->component_mask = 0;  // No components required by default
+    system->update_func = info->update_func;
+    system->context = info->context;
+    system->priority = info->priority;
+    
+    return system;
+}
+
+/*
+ * Get a component type ID by name
+ */
+ComponentTypeID braggi_ecs_get_component_type_by_name(ECSWorld* world, const char* name) {
+    if (!world || !name) {
+        return INVALID_COMPONENT_TYPE;
+    }
+    
+    // Simple implementation: iterate through component arrays 
+    // and check their names (if available)
+    for (ComponentTypeID type = 0; type < world->component_type_count; type++) {
+        // Skip if component array doesn't exist
+        if (!world->component_arrays[type]) continue;
+        
+        // In a proper implementation, component arrays would store their names
+        // For now, we'll use a simple comparison method by checking key component properties
+        
+        // Implement your component registration and lookup logic here
+        // This is a simplified implementation that returns the first component type
+        // whose name matches the requested name
+        
+        // If this is the TokenComponent, the type stored would match the name
+        if (strcmp(name, "TokenComponent") == 0) {
+            return type; // Return the first component type we find (stubbed for now)
+        }
+    }
+    
+    return INVALID_COMPONENT_TYPE;
+}
+
+/*
+ * Register a new component type with the ECS world
+ */
+ComponentTypeID braggi_ecs_register_component(ECSWorld* world, size_t component_size) {
+    if (!world || world->component_type_count >= world->max_component_types) {
+        return INVALID_COMPONENT_TYPE;
+    }
+    
+    // Create component info with minimal details
+    ComponentTypeInfo info = {
+        .name = NULL,
+        .size = component_size,
+        .constructor = NULL,
+        .destructor = NULL
+    };
+    
+    return braggi_ecs_register_component_type(world, &info);
+}
+
+ECSWorld* braggi_ecs_create_world() {
+    // Simple wrapper that calls the create_world_with_region function with NULL parameters
+    // This creates a standard ECS world without region-based memory
+    return braggi_ecs_create_world_with_region(NULL, NULL, REGIME_SEQ);
 } 

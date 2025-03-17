@@ -1,0 +1,40 @@
+// Test Braggi source file for LSP testing
+// "A fine Braggi program, ready to rustle up some tokens and lasso them quantum constraints!"
+
+region Main {
+    entity App {
+        fn main() {
+            println("Howdy, Braggi world!");
+            
+            // Deliberate error: missing semicolon
+            let x = 42
+            
+            // Deliberate error: unclosed string literal
+            let broken_string = "This string doesn't end;
+            
+            // Deliberate error: invalid syntax pattern 
+            let @ invalid & operator = 123;
+            
+            // Wave function collapse example
+            let possibilities = [1, 2, 3, 4, 5];
+            seed 0xBEEF;
+            
+            // Using Braggi's special constraint-based programming
+            regime quantum {
+                entity Particle {
+                    component Position { x: f32, y: f32 }
+                    component Velocity { dx: f32, dy: f32 }
+                    
+                    system UpdatePosition(Position, Velocity) {
+                        fn update(position, velocity, dt) {
+                            position.x += velocity.dx * dt;
+                            position.y += velocity.dy * dt;
+                        }
+                    }
+                }
+            }
+            
+            return 0;
+        }
+    }
+} 

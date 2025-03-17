@@ -102,12 +102,13 @@ struct EntropyRule {
 // Function declarations
 
 // State functions
-EntropyState* braggi_state_create(uint32_t id, uint32_t type, const char* label, void* data, uint32_t probability);
+EntropyState* braggi_entropy_state_create(uint32_t id, uint32_t type, const char* label, void* data, uint32_t probability);
 void braggi_state_destroy(EntropyState* state);
 void braggi_state_set_probability(EntropyState* state, uint32_t probability);
 bool braggi_state_is_eliminated(EntropyState* state);
 void braggi_state_eliminate(EntropyState* state);
 void braggi_state_restore(EntropyState* state);
+void braggi_state_set_eliminated(EntropyState* state, bool eliminated);
 
 // Cell functions
 EntropyCell* braggi_entropy_cell_create(uint32_t id);
@@ -117,6 +118,7 @@ bool braggi_entropy_cell_remove_state(EntropyCell* cell, uint32_t state_id);
 EntropyState* braggi_entropy_cell_get_state(EntropyCell* cell, uint32_t state_id);
 double braggi_entropy_cell_get_entropy(EntropyCell* cell);
 bool braggi_entropy_cell_is_collapsed(EntropyCell* cell);
+EntropyState* braggi_entropy_cell_get_collapsed_state(EntropyCell* cell);
 bool braggi_entropy_cell_collapse(EntropyCell* cell, uint32_t state_index);
 bool braggi_entropy_cell_collapse_random(EntropyCell* cell);
 bool braggi_entropy_cell_has_contradiction(EntropyCell* cell);
@@ -163,5 +165,17 @@ EntropyConstraint* braggi_create_adjacency_constraint(void* token, EntropyCell**
 double braggi_entropy_calculate(size_t possibilities);
 uint32_t braggi_entropy_random_state_index(EntropyCell* cell);
 const char* braggi_entropy_constraint_type_to_string(EntropyConstraintType type);
+
+// Backtracking collapse support
+bool braggi_entropy_field_collapse_with_backtracking(EntropyField* field);
+bool braggi_entropy_field_is_fully_collapsed(EntropyField* field);
+
+// Visualization and debugging functions
+char* braggi_entropy_field_visualize(EntropyField* field);
+char* braggi_entropy_field_generate_report(EntropyField* field);
+
+// Wave Function Collapse algorithm
+bool braggi_entropy_field_apply_wave_function_collapse(EntropyField* field);
+bool braggi_wave_function_collapse(EntropyField* field, Vector* tokens, Vector* patterns);
 
 #endif /* BRAGGI_ENTROPY_H */ 

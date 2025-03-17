@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include "braggi/source.h"
 #include "braggi/source_position.h"
@@ -103,7 +104,15 @@ uint64_t braggi_source_position_to_entity(const Source* source, const SourcePosi
     }
     
     // Add the component to the entity using the correct API
-    braggi_ecs_add_component(global_ecs, entity, source_position_component_type, pos_copy);
+    void* component_data = braggi_ecs_add_component(global_ecs, entity, source_position_component_type);
+    if (component_data) {
+        // Copy the position data to the component
+        memcpy(component_data, pos_copy, sizeof(SourcePosition));
+        free(pos_copy); // Free our copy since the data is now in the component
+    } else {
+        free(pos_copy);
+        return 0; // Failed to add component
+    }
     
     // Add to source tracking (if needed)
     // We need to cast away const to modify the source
@@ -148,7 +157,15 @@ bool braggi_ecs_add_source_position(const Source* source, uint64_t entity_id, co
     }
     
     // Add the component to the entity using the correct API
-    braggi_ecs_add_component(global_ecs, entity_id, source_position_component_type, pos_copy);
+    void* component_data = braggi_ecs_add_component(global_ecs, entity_id, source_position_component_type);
+    if (component_data) {
+        // Copy the position data to the component
+        memcpy(component_data, pos_copy, sizeof(SourcePosition));
+        free(pos_copy); // Free our copy since the data is now in the component
+    } else {
+        free(pos_copy);
+        return false; // Failed to add component
+    }
     
     // Add to source tracking (if needed)
     // We need to cast away const to modify the source
@@ -269,12 +286,16 @@ static uint32_t next_file_id = 1;
 
 Source* braggi_source_file_create(const char* filename) {
     if (!filename) {
+        fprintf(stderr, "DEBUG: Filename is NULL in source_file_create\n");
         return NULL;
     }
+    
+    fprintf(stderr, "DEBUG: Creating source file for: %s\n", filename);
     
     // Open the file
     FILE* file = fopen(filename, "r");
     if (!file) {
+        fprintf(stderr, "DEBUG: Failed to open file: %s (errno: %d)\n", filename, errno);
         return NULL;
     }
     
@@ -283,7 +304,10 @@ Source* braggi_source_file_create(const char* filename) {
     long file_size = ftell(file);
     fseek(file, 0, SEEK_SET);
     
+    fprintf(stderr, "DEBUG: File size is %ld bytes\n", file_size);
+    
     if (file_size <= 0) {
+        fprintf(stderr, "DEBUG: File is empty or error reading size\n");
         fclose(file);
         return NULL;
     }
@@ -291,6 +315,7 @@ Source* braggi_source_file_create(const char* filename) {
     // Read the entire file into a buffer
     char* buffer = (char*)malloc(file_size + 1);
     if (!buffer) {
+        fprintf(stderr, "DEBUG: Failed to allocate buffer of size %ld\n", file_size + 1);
         fclose(file);
         return NULL;
     }
@@ -299,14 +324,19 @@ Source* braggi_source_file_create(const char* filename) {
     buffer[bytes_read] = '\0';
     fclose(file);
     
+    fprintf(stderr, "DEBUG: Read %zu bytes from file\n", bytes_read);
+    
     // Split the file into lines
     unsigned int num_lines;
     char** lines = split_lines(buffer, &num_lines);
-    free(buffer);
     
     if (!lines) {
+        fprintf(stderr, "DEBUG: Failed to split file into lines\n");
+        free(buffer);
         return NULL;
     }
+    
+    fprintf(stderr, "DEBUG: Split file into %u lines\n", num_lines);
     
     // Create the Source structure
     Source* source = (Source*)malloc(sizeof(Source));
@@ -602,4 +632,14 @@ Source* braggi_source_from_string(const char* name, const char* content, size_t 
     source->max_position_entities = 0;
     
     return source;
+}
+
+/**
+ * Get the filename of a source
+ */
+const char* braggi_source_get_filename(const Source* source) {
+    if (!source) {
+        return NULL;
+    }
+    return source->filename;
 } 

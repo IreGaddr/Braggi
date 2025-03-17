@@ -7,11 +7,13 @@ Braggi is a purely functional systems programming language featuring a novel reg
 
 ### 1.1 Design Philosophy
 
-Braggi is designed around two core principles:
+Braggi is designed around three core principles:
 
 1. **Memory management should be both expressive and safe**. Rather than relying on garbage collection or manual memory management, Braggi introduces a region-based approach with explicitly declared access patterns (regimes).
 
 2. **Compilation should be a unified process of constraint application**. Instead of sequential phases of lexing, parsing, and analysis, Braggi treats compilation as an entropy reduction problem through constraint propagation.
+
+3. **The compiler pipeline should be inherently parallelizable**. By implementing the compiler as an Entity Component System (ECS), Braggi achieves a highly parallelizable compilation process where system boundaries are clear and data dependencies explicit.
 
 ### 1.2 Key Innovations
 
@@ -19,6 +21,7 @@ Braggi is designed around two core principles:
 - **Memory Access Regimes**: Declared patterns for memory access (FIFO, FILO, SEQ, RAND)
 - **Periscope Mechanism**: Controlled lifetime extension with compile-time safety verification
 - **Wave Function Constraint Collapse Compilation**: Unified approach to program analysis
+- **Entity Component System Architecture**: Fully integrated ECS from frontend to backend for parallelizable compilation pipeline
 
 ## 2. Memory Model: Regions & Regimes
 
@@ -174,6 +177,17 @@ Region-specific constraints include:
 - Access pattern enforcement (following regime rules)
 
 These constraints propagate through the program during the WFCCC process.
+
+### 3.6 ECS-WFCCC Integration
+
+The WFCCC algorithm is implemented using an Entity Component System (ECS) architecture, enabling:
+
+- **Component-based representation** of code elements (tokens, states, constraints)
+- **System-based processing** of the WFCCC algorithm stages
+- **Parallelizable constraint application** through data-oriented design
+- **Clear separation** between algorithm concerns
+
+The integration allows the constraint collapse process to occur in parallel across different parts of the code, with an observer system that propagates changes when needed.
 
 ## 4. Language Features
 
@@ -358,6 +372,85 @@ fn WFCCC(sourceCode: String) -> Result<ASTRepresentation, Error> {
 }
 ```
 
+### 6.5 ECS Architecture
+
+The Braggi compiler is implemented as an Entity Component System, providing a unified architecture across all compiler stages:
+
+```
+struct ECSWorld {
+    size_t entity_capacity;           // Maximum number of entities
+    size_t next_entity_id;            // Next entity ID to assign
+    size_t component_type_count;      // Number of registered component types
+    size_t max_component_types;       // Maximum number of component types
+    Vector* free_entities;            // Recycled entity IDs
+    ComponentArray** component_arrays; // Array of component arrays
+    ComponentMask* entity_component_masks; // Component masks for each entity
+    Vector* systems;                  // Registered systems
+    Region* memory_region;            // Optional memory region for allocations
+};
+```
+
+Entities represent units of code (tokens, states, AST nodes), components store data (token value, state possibilities, region info), and systems implement the logic (tokenization, constraint propagation, code generation).
+
+### 6.6 Core Component Types
+
+Braggi's ECS uses a variety of specialized components to represent the WFCCC process:
+
+```
+// Token components
+typedef struct {
+    Token token;                  // Token data
+} TokenComponent;
+
+// Entropy components
+typedef struct {
+    Cell* cell;                   // Reference to entropy cell
+    float entropy;                // Current entropy value (cached)
+} EntropyCellComponent;
+
+// AST components
+typedef struct {
+    enum { /* AST node types */ } node_type;
+    void* data;                   // Node-specific data
+} ASTNodeComponent;
+
+// Region components
+typedef struct {
+    char* name;                   // Region name
+    size_t size;                  // Region size
+    RegimeType regime;            // Region regime
+    EntityID* allocations;        // Entities representing allocations
+    size_t allocation_count;      // Number of allocations
+} RegionComponent;
+```
+
+### 6.7 Core System Pipeline
+
+The compilation process flows through a series of ECS systems that each handle a specific part of compilation:
+
+```
+// Tokenization phase
+braggi_system_tokenize()
+
+// WFCCC phase
+braggi_system_init_entropy()
+braggi_system_create_constraints()
+braggi_system_propagate_constraints()
+braggi_system_collapse_entropy()
+
+// AST phase
+braggi_system_build_ast()
+braggi_system_type_check()
+braggi_system_analyze_regions()
+
+// Code generation phase
+braggi_system_generate_code()
+braggi_system_allocate_registers()
+braggi_system_generate_output()
+```
+
+Each system operates on entities with specific component combinations, following the ECS pattern of data-oriented design.
+
 ## 7. Example: Data Processing Pipeline
 
 ```
@@ -390,13 +483,22 @@ fn process_data(input: Array<Int>) -> Array<Int> {
 
 ## 8. Compilation Process Flow
 
+The ECS-based compilation process proceeds as follows:
+
 1. **Source Code Input**: Program text entered
-2. **Entropy Field Construction**: Initialize all possibilities
-3. **Main Function Identification**: Start constraint propagation from main
-4. **Region Boundary Identification**: Detect region declarations
-5. **Regime Compatibility Verification**: Check all periscope operations
-6. **Constraint Propagation**: Apply constraints and collapse possibilities
-7. **Code Generation**: Convert fully collapsed program to target code
+2. **Tokenization System**: Creates token entities from source text
+3. **Entropy Initialization**: Creates entropy cells for tokens
+4. **Constraint Creation**: Creates constraint entities between cells
+5. **Constraint Propagation**: Applies constraints through the entropy field
+6. **Entropy Collapse**: Observes and collapses cells using WFCCC
+7. **AST Building**: Constructs an AST from collapsed cells
+8. **Type Checking**: Performs type analysis on the AST
+9. **Region Analysis**: Verifies region and regime constraints
+10. **Code Generation**: Transforms AST to target architecture code
+11. **Register Allocation**: Optimizes register usage
+12. **Output Generation**: Produces the final executable code
+
+Each step is implemented as one or more ECS systems that operate on appropriate entities.
 
 ## 9. Grammar (EBNF)
 
@@ -458,3 +560,125 @@ WFCCC provides rich information for IDE features:
 - Real-time error detection and reporting
 - Code completion based on possible valid states
 - Refactoring suggestions based on constraint propagation
+
+### 10.5 ECS Extensions
+
+Future versions will enhance the ECS architecture with:
+
+- **User-defined systems** for custom compilation extensions
+- **Plugin architecture** for language extensions using the ECS
+- **Multi-threaded ECS** for improved compilation performance
+- **Visual debugging tools** leveraging the ECS architecture
+
+### 10.6 Integrated API Documentation
+
+A comprehensive API documentation system will provide:
+
+- **Component reference** for each ECS component
+- **System documentation** describing processing logic
+- **Entity templates** for common compiler elements
+- **Data flow visualization** through the compilation pipeline
+- **Extension points** for language customization
+
+## 11. Entity Component System Integration
+
+### 11.1 Core ECS Concepts
+
+Braggi's compiler is built on a full Entity Component System architecture:
+
+1. **Entities**: Lightweight identifiers representing elements in the compilation pipeline (tokens, AST nodes, etc.)
+2. **Components**: Pure data structures associated with entities (token data, source positions, etc.)
+3. **Systems**: Logic that processes entities with specific component combinations
+
+This architecture enables several key benefits:
+- Clear separation of data and logic
+- Fine-grained parallelism in the compilation process
+- Extensibility through new components and systems
+- Memory efficiency through data-oriented design
+
+### 11.2 Compiler Pipeline as ECS
+
+The entire compiler pipeline is expressed as a series of systems operating on entities:
+
+| Phase | Systems | Input Entities | Output Entities |
+|-------|---------|----------------|-----------------|
+| Tokenization | TokenizeSystem | SourceFileEntity | TokenEntities |
+| WFCCC | EntropyInitSystem, ConstraintSystem, PropagationSystem, CollapseSystem | TokenEntities | StateEntities |
+| AST Building | ASTBuildSystem, TypeCheckSystem, RegionAnalysisSystem | StateEntities | ASTEntities |
+| Code Generation | CodeGenSystem, RegisterAllocSystem, OutputSystem | ASTEntities | CodeEntities |
+
+### 11.3 ECS Components for Compilation
+
+Key components in the Braggi compiler include:
+
+- **Code Representation**: TokenComponent, SourcePositionComponent, SourceReferenceComponent
+- **WFCCC State**: EntropyCellComponent, StateComponent, PossibleStatesComponent
+- **Constraint Management**: ConstraintComponent, ConstraintTargetComponent
+- **AST**: ASTNodeComponent, ASTReferenceComponent, TypeComponent
+- **Region Management**: RegionComponent, AllocationComponent, PeriscopeComponent
+- **Code Generation**: CodeGenInfoComponent, RegisterComponent, MemoryLocationComponent, TargetArchComponent
+
+### 11.4 ECS-Driven Code Generation
+
+Code generation in Braggi leverages the ECS architecture through specialized components and systems:
+
+```
+// Code generation entity creation
+EntityID codegen_entity = braggi_ecs_create_codegen_entity(world, TARGET_X86_64, entropy_field);
+
+// Code generation systems
+braggi_ecs_update_backend_init_system(world, 0.0f);
+braggi_ecs_update_codegen_context_system(world, 0.0f);
+braggi_ecs_update_code_generation_system(world, 0.0f);
+braggi_ecs_update_code_output_system(world, 0.0f);
+```
+
+The system-driven approach allows targeting multiple architectures in parallel and provides clear extension points for new backends.
+
+### 11.5 Entity Queries for Compilation Analysis
+
+Braggi uses ECS queries to analyze code during compilation:
+
+```
+// Create a query for entities with specific components
+EntityQuery query = braggi_ecs_query_entities(world, 
+    COMPONENT_MASK(COMPONENT_AST_NODE) | 
+    COMPONENT_MASK(COMPONENT_TYPE));
+
+// Process matching entities
+EntityID entity;
+while (braggi_ecs_query_next(&query, &entity)) {
+    ASTNodeComponent* node = braggi_ecs_get_component(world, entity, COMPONENT_AST_NODE);
+    TypeComponent* type = braggi_ecs_get_component(world, entity, COMPONENT_TYPE);
+    
+    // Process node with type information
+}
+```
+
+This approach enables powerful static analysis tools and IDE integrations.
+
+### 11.6 Parallel Compilation with ECS
+
+The ECS architecture enables efficient parallel compilation:
+
+1. **Data decomposition**: Entities are grouped by component composition
+2. **Task parallelism**: Systems operate independently on appropriate entities
+3. **Pipeline parallelism**: Multiple compilation phases can operate concurrently
+4. **Work stealing**: Dynamic load balancing across available processing resources
+
+This approach scales with available cores and provides predictable performance characteristics.
+
+### 11.7 ECS Memory Management Integration
+
+Braggi's region-based memory system integrates with ECS:
+
+```
+// Create an ECS world using a memory region
+Region* compiler_region = braggi_region_create("compiler", REGION_MB(128));
+Region* entity_region = braggi_region_create_subregion(compiler_region, "entities", REGION_MB(64));
+
+// Create ECS world with region-based memory
+ECSWorld* world = braggi_ecs_create_world_with_region(compiler_region, entity_region, REGIME_SEQ);
+```
+
+This integration provides efficient memory management for ECS components and entities while leveraging Braggi's region and regime system.

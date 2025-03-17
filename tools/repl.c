@@ -15,6 +15,7 @@
 #include "braggi/braggi.h"
 #include "braggi/error.h"
 #include "braggi/source.h"
+#include "braggi/stdlib.h"
 
 // ANSI color codes for pretty output
 #define COLOR_RESET    "\x1b[0m"
@@ -79,20 +80,22 @@ void print_welcome(void) {
     printf("║   Type your code directly, or use one of these commands:      ║\n");
     printf("║   :help   - Display help information                          ║\n");
     printf("║   :load   - Load code from a file                             ║\n");
+    printf("║   :import - Import a standard library module                  ║\n");
     printf("║   :quit   - Exit the REPL                                     ║\n");
     printf("╚═══════════════════════════════════════════════════════════════╝\n");
     printf(COLOR_RESET);
 }
 
 void print_help(void) {
-    printf(COLOR_YELLOW);
-    printf("Braggi REPL Commands:\n");
-    printf("  :help              Display this help message\n");
-    printf("  :quit, :exit       Exit the REPL\n");
-    printf("  :load <filename>   Load and execute code from a file\n");
+    printf(COLOR_CYAN);
+    printf("Available commands:\n");
+    printf("  :help              Show this help message\n");
+    printf("  :load <filename>   Load and execute a Braggi source file\n");
+    printf("  :import <module>   Import a standard library module\n");
     printf("  :clear             Clear the screen\n");
+    printf("  :quit              Exit the REPL\n");
     printf("\n");
-    printf("Any other input will be executed as Braggi code.\n");
+    printf("Any other input will be evaluated as Braggi code.\n");
     printf(COLOR_RESET);
 }
 
@@ -164,6 +167,19 @@ bool execute_command(ReplState* state, const char* cmd) {
     if (strncmp(cmd, "clear", 5) == 0) {
         printf("\033[2J\033[H");  // ANSI escape sequence to clear screen
         print_welcome();
+        return true;
+    }
+    
+    // Command: import <module>
+    if (strncmp(cmd, "import ", 7) == 0) {
+        const char* module_name = cmd + 7;
+        printf(COLOR_YELLOW "Importing module: %s\n" COLOR_RESET, module_name);
+        
+        if (braggi_stdlib_load_module(state->context, module_name)) {
+            printf(COLOR_GREEN "Successfully imported module '%s'\n" COLOR_RESET, module_name);
+        } else {
+            printf(COLOR_RED "Failed to import module '%s'\n" COLOR_RESET, module_name);
+        }
         return true;
     }
     

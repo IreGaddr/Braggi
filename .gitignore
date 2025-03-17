@@ -3,6 +3,10 @@ build/
 bin/
 lib/
 obj/
+vscode-braggi/
+tools/
+todo/
+tests/
 
 # CMake files
 CMakeCache.txt

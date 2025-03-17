@@ -22,9 +22,11 @@ typedef void (*FreeFunction)(void* ptr);
 
 /* HashMap functions */
 HashMap* braggi_hashmap_create(void);
+HashMap* braggi_hashmap_create_with_capacity(size_t initial_capacity);
 void braggi_hashmap_destroy(HashMap* map);
 size_t braggi_hashmap_size(const HashMap* map);
-bool braggi_hashmap_put(HashMap* map, void* key, void* value);
+bool braggi_hashmap_put(HashMap* map, const void* key, void* value);
+bool braggi_hashmap_set(HashMap* map, const void* key, void* value); /* Alias for braggi_hashmap_put */
 void* braggi_hashmap_get(const HashMap* map, const void* key);
 void* braggi_hashmap_remove(HashMap* map, const void* key);
 void braggi_hashmap_set_functions(HashMap* map, HashFunction hash_fn, EqualsFunction equals_fn);
@@ -33,6 +35,9 @@ void braggi_hashmap_set_free_functions(HashMap* map, FreeFunction key_free_fn, F
 /* Iterator functions */
 void braggi_hashmap_iterator_init(const HashMap* map, HashMapIterator* iter);
 bool braggi_hashmap_iterator_next(HashMapIterator* iter, void** key, void** value);
+
+/* Iteration function */
+void braggi_hashmap_for_each(HashMap* map, void (*callback)(const void* key, void* value, void* user_data), void* user_data);
 
 /* Utility functions */
 unsigned int braggi_hashmap_hash_pointer(const void* key);

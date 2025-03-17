@@ -7,6 +7,7 @@
 
 #include "braggi/builtins/builtins.h"
 #include "braggi/braggi.h"
+#include "braggi/stdlib.h"  // Include stdlib.h to use its registry functions
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,53 +21,19 @@ struct BraggiValue {
 #define BRAGGI_VALUE_DEFINED
 #endif
 
-// Structure for the builtin registry
-struct BraggiBuiltinRegistry {
-    // This is just a placeholder for now
-    int dummy;
-};
+// Structure for the builtin registry is defined in stdlib.h
+// Avoid duplicating the registry functions here
 
-// Create a new builtin registry
-BraggiBuiltinRegistry* braggi_builtin_registry_create(void) {
-    BraggiBuiltinRegistry* registry = (BraggiBuiltinRegistry*)malloc(sizeof(BraggiBuiltinRegistry));
-    if (!registry) {
-        return NULL;
-    }
-    
-    // Initialize registry
-    registry->dummy = 0;
-    
-    return registry;
-}
+// Static function implementations for builtins
 
-// Destroy a builtin registry
-void braggi_builtin_registry_destroy(BraggiBuiltinRegistry* registry) {
-    if (!registry) {
-        return;
-    }
-    
-    // Free the registry itself
-    free(registry);
-}
-
-// Initialize the standard library builtins
-bool braggi_initialize_stdlib(BraggiBuiltinRegistry* registry) {
-    if (!registry) {
-        return false;
-    }
-    
-    // This is just a stub implementation for now
-    printf("Initializing stdlib builtins...\n");
-    
-    return true;
-}
-
-// Sample builtin functions (these would be real implementations in production)
+// Create a builtin print function
 static BraggiValue* builtin_print(BraggiValue** args, size_t arg_count, void* context) {
-    // This is just a stub - it would print the values in args
-    printf("Print builtin called with %zu args\n", arg_count);
-    (void)args;
-    (void)context;
+    // This is just a placeholder implementation
+    printf("builtin_print called with %zu arguments\n", arg_count);
+    
+    (void)args;    // Suppress unused parameter warning
+    (void)context; // Suppress unused parameter warning
+    
     return NULL;
 }
 

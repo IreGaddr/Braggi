@@ -26,6 +26,8 @@ static void register_system_builtins(BraggiBuiltinRegistry* registry);
 // Forward declare the stub implementations of the example functions
 static BraggiValue* math_add(BraggiValue** args, size_t arg_count, void* context);
 static BraggiValue* math_subtract(BraggiValue** args, size_t arg_count, void* context);
+static BraggiValue* math_multiply(BraggiValue** args, size_t arg_count, void* context);
+static BraggiValue* math_divide(BraggiValue** args, size_t arg_count, void* context);
 static BraggiValue* string_length(BraggiValue** args, size_t arg_count, void* context);
 static BraggiValue* io_print(BraggiValue** args, size_t arg_count, void* context);
 static BraggiValue* system_exit(BraggiValue** args, size_t arg_count, void* context);
@@ -173,16 +175,76 @@ void braggi_builtin_registry_destroy(BraggiBuiltinRegistry* registry) {
 
 // Example builtin functions matching the real signature
 static BraggiValue* math_add(BraggiValue** args, size_t arg_count, void* context) {
-    // In a real implementation, this would add two numbers
-    printf("math.add called with %zu args\n", arg_count);
+    // Check if we have the right number of arguments
+    if (arg_count != 2) {
+        printf("math.add: Expected 2 arguments, got %zu\n", arg_count);
+        return NULL;
+    }
+    
+    // In a full implementation, we would check the types of the arguments
+    // and perform proper error handling
+    
+    // For the demo, just print a message about the operation being performed
+    printf("math.add: Adding two numbers (stub implementation)\n");
+    
+    // This would be a real implementation in the full version
+    // double a = braggi_value_to_number(args[0]);
+    // double b = braggi_value_to_number(args[1]);
+    // return braggi_value_create_number(a + b);
+    
     (void)args;
     (void)context;
     return NULL; // Return a BraggiValue* in a real implementation
 }
 
 static BraggiValue* math_subtract(BraggiValue** args, size_t arg_count, void* context) {
-    // In a real implementation, this would subtract two numbers
-    printf("math.subtract called with %zu args\n", arg_count);
+    // Check if we have the right number of arguments
+    if (arg_count != 2) {
+        printf("math.subtract: Expected 2 arguments, got %zu\n", arg_count);
+        return NULL;
+    }
+    
+    // In a full implementation, we would check the types of the arguments
+    // and perform proper error handling
+    
+    // For the demo, just print a message about the operation being performed
+    printf("math.subtract: Subtracting two numbers (stub implementation)\n");
+    
+    // This would be a real implementation in the full version
+    // double a = braggi_value_to_number(args[0]);
+    // double b = braggi_value_to_number(args[1]);
+    // return braggi_value_create_number(a - b);
+    
+    (void)args;
+    (void)context;
+    return NULL;
+}
+
+static BraggiValue* math_multiply(BraggiValue** args, size_t arg_count, void* context) {
+    // Check if we have the right number of arguments
+    if (arg_count != 2) {
+        printf("math.multiply: Expected 2 arguments, got %zu\n", arg_count);
+        return NULL;
+    }
+    
+    // For the demo, just print a message about the operation being performed
+    printf("math.multiply: Multiplying two numbers (stub implementation)\n");
+    
+    (void)args;
+    (void)context;
+    return NULL;
+}
+
+static BraggiValue* math_divide(BraggiValue** args, size_t arg_count, void* context) {
+    // Check if we have the right number of arguments
+    if (arg_count != 2) {
+        printf("math.divide: Expected 2 arguments, got %zu\n", arg_count);
+        return NULL;
+    }
+    
+    // For the demo, just print a message about the operation being performed
+    printf("math.divide: Dividing two numbers (stub implementation)\n");
+    
     (void)args;
     (void)context;
     return NULL;
@@ -224,6 +286,17 @@ static void register_math_builtins(BraggiBuiltinRegistry* registry) {
                     
     register_builtin(registry, "math.subtract", math_subtract,
                     "Subtract two numbers",
+                    "func(a: number, b: number) -> number",
+                    NULL);
+                    
+    // Register new math functions
+    register_builtin(registry, "math.multiply", math_multiply,
+                    "Multiply two numbers",
+                    "func(a: number, b: number) -> number",
+                    NULL);
+                    
+    register_builtin(registry, "math.divide", math_divide,
+                    "Divide two numbers",
                     "func(a: number, b: number) -> number",
                     NULL);
                     
@@ -272,7 +345,28 @@ bool braggi_stdlib_load_module(BraggiContext* context, const char* module_name) 
         return false;
     }
     
-    // Find the module path - this is a simplified approach
+    // Check for built-in modules first
+    if (strcmp(module_name, "math") == 0) {
+        printf("Loaded built-in 'math' module\n");
+        return true; // Math module is always available
+    }
+    
+    if (strcmp(module_name, "string") == 0) {
+        printf("Loaded built-in 'string' module\n");
+        return true; // String module is always available
+    }
+    
+    if (strcmp(module_name, "io") == 0) {
+        printf("Loaded built-in 'io' module\n");
+        return true; // IO module is always available
+    }
+    
+    if (strcmp(module_name, "system") == 0) {
+        printf("Loaded built-in 'system' module\n");
+        return true; // System module is always available
+    }
+    
+    // For external modules, try to find the file
     char file_path[1024];
     snprintf(file_path, sizeof(file_path), "modules/%s.bg", module_name);
     

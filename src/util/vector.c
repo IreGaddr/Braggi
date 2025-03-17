@@ -533,4 +533,35 @@ void* braggi_vector_emplace(Vector* vector) {
     vector->size++;
     
     return element_ptr;
+}
+
+/**
+ * Erase an element at the specified index
+ * Similar to remove_at but doesn't set the error message
+ */
+bool braggi_vector_erase(Vector* vector, size_t index) {
+    // Check for invalid parameters
+    if (!vector || index >= vector->size) {
+        return false;
+    }
+    
+    // Calculate pointer to the element to remove
+    char* data = (char*)vector->data;
+    char* elem_ptr = data + (index * vector->elem_size);
+    
+    // Calculate pointer to the element after the one to remove
+    char* next_elem_ptr = elem_ptr + vector->elem_size;
+    
+    // Number of bytes to move
+    size_t bytes_to_move = (vector->size - index - 1) * vector->elem_size;
+    
+    // Move all elements after index one position back
+    if (bytes_to_move > 0) {
+        memmove(elem_ptr, next_elem_ptr, bytes_to_move);
+    }
+    
+    // Update size
+    vector->size--;
+    
+    return true;
 } 

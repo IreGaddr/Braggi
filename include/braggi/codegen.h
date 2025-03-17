@@ -46,6 +46,7 @@ typedef struct {
     int optimization_level;      /* Optimization level (0-3) */
     bool emit_debug_info;        /* Include debug information */
     char* output_file;           /* Output file name */
+    EntropyField* entropy_field; /* Entropy field for code generation */
 } CodeGenOptions;
 
 /*
@@ -55,6 +56,7 @@ typedef struct {
     BraggiContext* braggi_ctx;   /* Compiler context */
     CodeGenOptions options;      /* Code generator options */
     void* arch_data;             /* Architecture-specific data */
+    struct CodeGenerator* generator; /* The code generator backend */
 } CodeGenContext;
 
 /* Function prototypes */
@@ -67,6 +69,9 @@ void braggi_codegen_cleanup(CodeGenContext* ctx);
 
 /* Generate code from the AST */
 bool braggi_codegen_generate(CodeGenContext* ctx);
+
+/* Generate code using the Entity Component System */
+bool braggi_codegen_generate_ecs(BraggiContext* braggi_ctx, TargetArch arch, const char* output_file);
 
 /* Write output to a file */
 bool braggi_codegen_write_output(CodeGenContext* ctx, const char* filename);
@@ -87,5 +92,17 @@ const char* braggi_codegen_arch_to_string(TargetArch arch);
 
 /* Get string representation of an output format */
 const char* braggi_codegen_format_to_string(OutputFormat format);
+
+/* Initialize the code generation manager */
+bool braggi_codegen_manager_init(void);
+
+/* Clean up the code generation manager */
+void braggi_codegen_manager_cleanup(void);
+
+/* Apply optimizations to the generated code */
+bool braggi_codegen_optimize(CodeGenContext* ctx);
+
+/* Enable or disable debug information generation */
+bool braggi_codegen_set_debug_info(CodeGenContext* ctx, bool enable);
 
 #endif /* BRAGGI_CODEGEN_H */ 

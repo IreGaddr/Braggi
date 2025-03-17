@@ -21,6 +21,7 @@
 #include "braggi/region.h"
 #include "braggi/source.h"
 #include "braggi/error.h"  /* Include for ErrorSeverity and ErrorCategory enums */
+#include "braggi/token_ecs.h"
 
 /* Forward declarations - no longer redefined Vector */
 typedef struct ErrorHandler ErrorHandler;
@@ -29,6 +30,9 @@ typedef struct EntropyField EntropyField;
 typedef struct RegionManager RegionManager;
 typedef struct TokenManager TokenManager;
 typedef struct Error Error;
+typedef struct Vector Vector;
+typedef struct ECSWorld ECSWorld;
+typedef struct TokenPropagator TokenPropagator;
 
 /* Execution flags */
 #define BRAGGI_FLAG_VERBOSE   0x0001  /* Enable verbose output */
@@ -36,6 +40,8 @@ typedef struct Error Error;
 #define BRAGGI_FLAG_STRICT    0x0004  /* Enable strict mode */
 #define BRAGGI_FLAG_TEST      0x0008  /* Run in test mode */
 #define BRAGGI_FLAG_OPTIMIZE  0x0010  /* Enable optimizations */
+#define BRAGGI_FLAG_CODEGEN_CLEANUP_IN_PROGRESS 0x0020 /* Indicates codegen cleanup is in progress */
+#define BRAGGI_FLAG_FINAL_CLEANUP 0x0040 /* Indicates final cleanup is in progress, skip validation checks */
 
 /* Compiler options structure */
 typedef struct BraggiOptions {
@@ -73,9 +79,20 @@ typedef struct BraggiContext {
     EntropyField* entropy_field;
     RegionManager* region_manager;
     TokenManager* token_manager;
+    ECSWorld* ecs_world;      /* Entity Component System world */
+    
+    // Tokenization and propagation state
+    Vector* tokens;           /* Vector of tokenized source */
+    TokenPropagator* propagator;  /* Token propagator for WFC */
+    bool verbose;             /* Verbose output flag */
+    
+    // Output configuration
+    char* output_file;        /* Output file path for code generation */
     
     // Options
     BraggiOptions options;
+
+    bool wfc_completed;             // Whether WFC has completed
 } BraggiContext;
 
 /**
@@ -310,5 +327,8 @@ bool braggi_context_compile(BraggiContext* context);
  * @return true if successful, false otherwise
  */
 bool braggi_context_execute(BraggiContext* context);
+
+// Set the output file for code generation
+bool braggi_set_output_file(BraggiContext* context, const char* output_file);
 
 #endif /* BRAGGI_CONTEXT_H */ 
