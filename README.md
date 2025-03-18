@@ -16,6 +16,7 @@ Traditional compilers are as predictable as Texas weather - lexer scans, parser 
 ```
 
 ## 🔥 What Makes Braggi Special?
+https://github.com/mxgmn/WaveFunctionCollapse this Lang wouldn't exist with out this. Big tip of the hat to the original 
 
 ### 🧠 Wave Function Collapse Compilation
 We've taken a procedural generation algorithm used in game development and weaponized it for compilation! Your code exists in a quantum superposition of possible interpretations until our constraints collapse it into working code. 
